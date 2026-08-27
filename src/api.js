@@ -203,18 +203,20 @@ class ApiService {
     try {
       data = await this.request(`/api/v1/accounts/verify-risk/${encodeURIComponent(cleanId)}`);
     } catch (err) {
-      // If the identifier is a completely new unknown input not yet in the ledger directory
-      if (err.message.includes('not found') || err.message.includes('404')) {
-        const isSuspicious = cleanId.toLowerCase().includes('scam') || cleanId.toLowerCase().includes('mule');
+      // If the identifier is not found in the banking ledger / switch directory
+      if (err.message.includes('not found') || err.message.includes('404') || err.message.includes('Recipient')) {
         data = {
-          risk_score: isSuspicious ? 82.0 : 18.0,
-          status: isSuspicious ? 'FLAGGED' : 'ACTIVE',
-          holder_name: cleanId.includes('@') ? cleanId.split('@')[0].replace(/[._]/g, ' ') : 'External Counterparty',
-          warning_reasons: isSuspicious 
-            ? ["High Risk Counterparty: Keyword flag detected in external directory lookup."]
-            : ["Clean Counterparty: Standard heuristic checks cleared."],
-          recommended_action: isSuspicious ? "Do not send funds." : "Safe to proceed.",
-          is_safe_to_pay: !isSuspicious
+          risk_score: 95.0,
+          status: 'NOT_FOUND',
+          is_not_found: true,
+          holder_name: 'Beneficiary Not Found in Bank Registry',
+          warning_reasons: [
+            `Beneficiary Does Not Exist: Recipient "${cleanId}" is not registered in the Inter-Bank Clearing switch or NPCI central directory.`,
+            `Phantom Account / Spoofing Risk: Scammers frequently distribute non-existent, bogus, or slightly altered account numbers/VPAs. Payments to unverified addresses will bounce or may route to fraudulent collection accounts.`,
+            `Action Required: Do not attempt payment. Cross-verify the beneficiary's exact account number, IFSC code, or UPI handle directly through an independent communication channel.`
+          ],
+          recommended_action: 'DO NOT PROCEED. The entered account number or UPI ID does not exist in verified banking records. Transfer will fail or poses severe fraud risk.',
+          is_safe_to_pay: false
         };
       } else {
         throw err;
@@ -222,9 +224,10 @@ class ApiService {
     }
 
     const score = Math.round(data.risk_score || 0);
-    const flagged = data.status === 'FLAGGED' || data.status === 'FROZEN' || score >= 50;
+    const isNotFound = !!data.is_not_found;
+    const flagged = isNotFound || data.status === 'FLAGGED' || data.status === 'FROZEN' || score >= 50;
     const rawHolderName = data.holder_name || data.customer_name || cleanId;
-    const holderMasked = maskHolderName(rawHolderName);
+    const holderMasked = isNotFound ? "Unregistered Recipient" : maskHolderName(rawHolderName);
 
     // Structure raw backend strings into clean { label, detail } objects for the 3D gauge UI
     const rawReasons = Array.isArray(data.warning_reasons) ? data.warning_reasons : [];
@@ -259,14 +262,15 @@ class ApiService {
     return {
       riskScore: score,
       flagged,
+      isNotFound,
       holderName: rawHolderName,
       holderMasked,
       riskReasons,
       recommendedAction: data.recommended_action || (flagged ? "Do not approve transaction." : "Verified low risk."),
-      riskLevel: data.risk_level || (score >= 70 ? 'CRITICAL' : score >= 40 ? 'HIGH' : score >= 20 ? 'MEDIUM' : 'LOW'),
+      riskLevel: isNotFound ? 'CRITICAL' : (data.risk_level || (score >= 70 ? 'CRITICAL' : score >= 40 ? 'HIGH' : score >= 20 ? 'MEDIUM' : 'LOW')),
       status: data.status || (flagged ? 'FLAGGED' : 'ACTIVE'),
-      accountStatus: data.status || (flagged ? 'FLAGGED' : 'ACTIVE'),
-      isSafeToPay: data.is_safe_to_pay ?? !flagged,
+      accountStatus: isNotFound ? 'UNREGISTERED' : (data.status || (flagged ? 'FLAGGED' : 'ACTIVE')),
+      isSafeToPay: isNotFound ? false : (data.is_safe_to_pay ?? !flagged),
       complaintsCount: data.complaints_count || 0,
       complaintId,
       identifier: cleanId,

@@ -17,7 +17,8 @@ import {
   Activity,
   AlertCircle,
   CheckCircle,
-  HelpCircle
+  HelpCircle,
+  AlertOctagon
 } from 'lucide-react';
 
 /* ================================================================
@@ -257,11 +258,14 @@ export default function RiskResultPage({ resultData }) {
 
   if (!data) return null;
 
-  const isHighRisk = data.riskScore > 70;
-  const isMedRisk = data.riskScore > 35 && data.riskScore <= 70;
-  const isClean = data.riskScore <= 35;
+  const isNotFound = !!data.isNotFound || data.status === 'NOT_FOUND';
+  const isHighRisk = isNotFound || data.riskScore > 70;
+  const isMedRisk = !isNotFound && data.riskScore > 35 && data.riskScore <= 70;
+  const isClean = !isNotFound && data.riskScore <= 35;
 
-  const unmaskedName = data.holderName || (data.holderMasked?.replace(/\*/g, '') ? "Rajesh Kumar" : "Verified Account Holder");
+  const unmaskedName = isNotFound 
+    ? "Beneficiary Not Found in Bank Registry" 
+    : (data.holderName || (data.holderMasked?.replace(/\*/g, '') ? "Rajesh Kumar" : "Verified Account Holder"));
 
   // Fallback reasons if not provided
   const reasons = data.riskReasons && data.riskReasons.length > 0 
@@ -358,7 +362,12 @@ export default function RiskResultPage({ resultData }) {
         </button>
 
         {/* Status Badge tailored to Risk Level */}
-        {isHighRisk ? (
+        {isNotFound ? (
+          <div className="badge badge-high" style={{ padding: '8px 16px', fontSize: '0.8125rem', fontWeight: 800, letterSpacing: '0.04em', background: '#7F1D1D', color: '#FEE2E2', border: '1px solid #DC2626' }}>
+            <AlertOctagon style={{ width: 16, height: 16 }} />
+            <span>BENEFICIARY NOT FOUND — INVALID / UNREGISTERED ACCOUNT</span>
+          </div>
+        ) : isHighRisk ? (
           <div className="badge badge-high" style={{ padding: '8px 16px', fontSize: '0.8125rem', fontWeight: 800, letterSpacing: '0.04em' }}>
             <ShieldAlert style={{ width: 16, height: 16 }} />
             <span>CRITICAL FRAUD RISK — DO NOT SEND MONEY</span>
@@ -384,8 +393,8 @@ export default function RiskResultPage({ resultData }) {
 
         {/* 2. Target Beneficiary & Account Holder Info Card */}
         <div style={{
-          background: 'rgba(248, 250, 252, 0.85)',
-          border: '1px solid rgba(226, 232, 240, 0.9)',
+          background: isNotFound ? 'rgba(254, 242, 242, 0.7)' : 'rgba(248, 250, 252, 0.85)',
+          border: `1px solid ${isNotFound ? 'rgba(248, 113, 113, 0.8)' : 'rgba(226, 232, 240, 0.9)'}`,
           borderRadius: 'var(--radius-md)',
           padding: '20px 24px',
           marginBottom: 24
@@ -399,8 +408,8 @@ export default function RiskResultPage({ resultData }) {
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
                 Target Beneficiary
               </span>
-              <span style={{ fontSize: '1.0625rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-                {data.identifier}
+              <span style={{ fontSize: '1.0625rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: isNotFound ? '#DC2626' : 'var(--text-primary)' }}>
+                {data.identifier} {isNotFound && <span style={{ fontSize: '0.75rem', color: '#DC2626', fontWeight: 700 }}>[NOT REGISTERED]</span>}
               </span>
             </div>
 
@@ -408,9 +417,18 @@ export default function RiskResultPage({ resultData }) {
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
                 Account Holder Name
               </span>
-              <span style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <UserCheck style={{ width: 16, height: 16, color: '#0284C7' }} />
-                {unmaskedName}
+              <span style={{ fontSize: '1.0625rem', fontWeight: 800, color: isNotFound ? '#DC2626' : 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {isNotFound ? (
+                  <>
+                    <AlertOctagon style={{ width: 16, height: 16, color: '#DC2626' }} />
+                    <span>Unregistered Beneficiary (No Record Found)</span>
+                  </>
+                ) : (
+                  <>
+                    <UserCheck style={{ width: 16, height: 16, color: '#0284C7' }} />
+                    {unmaskedName}
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -418,8 +436,8 @@ export default function RiskResultPage({ resultData }) {
 
         {/* 3. Advisory Recommendation Alert Banner */}
         <div style={{
-          background: isHighRisk ? '#FEF2F2' : isMedRisk ? '#FFFBEB' : '#ECFDF5',
-          border: `1px solid ${isHighRisk ? '#FECACA' : isMedRisk ? '#FDE68A' : '#A7F3D0'}`,
+          background: isNotFound ? '#FEF2F2' : (isHighRisk ? '#FEF2F2' : isMedRisk ? '#FFFBEB' : '#ECFDF5'),
+          border: `1px solid ${isNotFound ? '#EF4444' : (isHighRisk ? '#FECACA' : isMedRisk ? '#FDE68A' : '#A7F3D0')}`,
           borderRadius: 'var(--radius-sm)',
           padding: '14px 18px',
           marginBottom: 24,
@@ -427,20 +445,24 @@ export default function RiskResultPage({ resultData }) {
           alignItems: 'center',
           gap: 12
         }}>
-          {isHighRisk ? (
+          {isNotFound ? (
+            <AlertOctagon style={{ width: 22, height: 22, color: '#DC2626', flexShrink: 0 }} />
+          ) : isHighRisk ? (
             <ShieldAlert style={{ width: 22, height: 22, color: '#DC2626', flexShrink: 0 }} />
           ) : isMedRisk ? (
             <AlertCircle style={{ width: 22, height: 22, color: '#D97706', flexShrink: 0 }} />
           ) : (
             <CheckCircle style={{ width: 22, height: 22, color: '#059669', flexShrink: 0 }} />
           )}
-          <div style={{ fontSize: '0.875rem', color: isHighRisk ? '#991B1B' : isMedRisk ? '#92400E' : '#065F46', lineHeight: 1.4 }}>
+          <div style={{ fontSize: '0.875rem', color: (isNotFound || isHighRisk) ? '#991B1B' : isMedRisk ? '#92400E' : '#065F46', lineHeight: 1.4 }}>
             <strong>Recommendation: </strong>
-            {isHighRisk 
-              ? 'Do not transfer any money to this account. It exhibits heavy fraud and money-laundering characteristics.'
-              : isMedRisk
-                ? 'Verify the recipient’s identity over phone call before proceeding with this transfer.'
-                : 'Safe to proceed. This account has a trusted record with no reported fraud complaints.'}
+            {data.recommendedAction || (isNotFound 
+              ? 'DO NOT PROCEED. The entered account number or UPI ID does not exist in verified banking records. Transfer will fail or poses severe fraud risk.'
+              : isHighRisk 
+                ? 'Do not transfer any money to this account. It exhibits heavy fraud and money-laundering characteristics.'
+                : isMedRisk
+                  ? 'Verify the recipient’s identity over phone call before proceeding with this transfer.'
+                  : 'Safe to proceed. This account has a trusted record with no reported fraud complaints.')}
           </div>
         </div>
 
