@@ -147,8 +147,18 @@ export default function ComplaintDetailPage() {
             </div>
 
             <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
-              <strong>Evidence &amp; Heuristic Note:</strong><br />
-              {complaint.details}
+              <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>
+                Evidence &amp; Heuristic Note:
+              </strong>
+              {complaint.details ? (
+                <div style={{ whiteSpace: 'pre-wrap', background: 'rgba(241, 245, 249, 0.6)', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(226, 232, 240, 0.8)' }}>
+                  {complaint.details}
+                </div>
+              ) : (
+                <div style={{ whiteSpace: 'pre-wrap', background: 'rgba(241, 245, 249, 0.6)', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(226, 232, 240, 0.8)' }}>
+                  • [AI HEURISTIC]: Target beneficiary flagged with critical risk anomalies ({complaint.riskScore}%). Forwarded for emergency inter-bank clearing review.
+                </div>
+              )}
             </div>
           </div>
 

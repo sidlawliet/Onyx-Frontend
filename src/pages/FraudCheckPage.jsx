@@ -9,7 +9,7 @@ import {
 export default function FraudCheckPage({ onCheckComplete }) {
   const navigate = useNavigate();
   const [identifierType, setIdentifierType] = useState('upi'); // 'upi' | 'account'
-  const [identifier, setIdentifier] = useState('rajesh.mule@oksbi');
+  const [identifier, setIdentifier] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 

@@ -319,11 +319,29 @@ export default function RiskResultPage({ resultData }) {
     setComplaintError(null);
     setFilingLoading(true);
     try {
+      // Compile rich evidence reasons and recommendations for bank officer triage
+      const evidenceParts = [];
+      if (data.isNotFound) {
+        evidenceParts.push("• [BENEFICIARY NOT FOUND]: Recipient does not exist in Inter-Bank switch or NPCI central directory. Flagged as unverified/phantom account.");
+      }
+      if (Array.isArray(data.riskReasons) && data.riskReasons.length > 0) {
+        data.riskReasons.forEach(r => {
+          if (r.label && r.detail) {
+            evidenceParts.push(`• [${r.label}]: ${r.detail}`);
+          }
+        });
+      }
+      if (data.recommendedAction) {
+        evidenceParts.push(`• [RECOMMENDED ACTION]: ${data.recommendedAction}`);
+      }
+      const evidenceDetails = evidenceParts.join('\n') || `Consumer flagged high-risk beneficiary ${data.identifier} (${data.riskScore}% risk score).`;
+
       const res = await api.fileComplaintDirect({
         identifierType: data.identifierType,
         identifier: data.identifier,
         riskScore: data.riskScore,
-        holderMasked: unmaskedName
+        holderMasked: unmaskedName,
+        details: evidenceDetails
       });
       const updatedData = { ...data, complaintId: res.complaintId };
       setData(updatedData);

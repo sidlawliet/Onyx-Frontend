@@ -298,6 +298,7 @@ class ApiService {
       suspect_upi_id: cleanId,
       scam_category: scamCategory,
       description: details || `Customer filed fraud dispute for ${cleanId}`,
+      risk_score: (typeof riskScore === 'number' ? riskScore : 95.0),
       amount: 45000.00
     };
 
