@@ -48,7 +48,9 @@ class ApiService {
 
     if (!response.ok) {
       const errorMsg = data?.message || data?.error || `Request failed with status ${response.status}`;
-      throw new Error(errorMsg);
+      const err = new Error(errorMsg);
+      err.status = response.status;
+      throw err;
     }
 
     return data;
@@ -203,8 +205,8 @@ class ApiService {
     try {
       data = await this.request(`/api/v1/accounts/verify-risk/${encodeURIComponent(cleanId)}`);
     } catch (err) {
-      // If the identifier is not found in the banking ledger / switch directory
-      if (err.message.includes('not found') || err.message.includes('404') || err.message.includes('Recipient')) {
+      // If the identifier is not found in the banking ledger / switch directory (HTTP 404)
+      if (err.status === 404 || (err.message && (err.message.includes('404') || err.message.includes('not found in directory')))) {
         data = {
           risk_score: 95.0,
           status: 'NOT_FOUND',
